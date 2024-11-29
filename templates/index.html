@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Maze Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #45a049;
+            --secondary-color: #2196F3;
+            --background-color: #f0f2f5;
+            --text-color: #333;
+            --cell-size: 20px;
+        }
+
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 5px solid var(--primary-color);
+        }
+
+        h1 {
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            text-align: center;
+        }
+
+        .maze-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .maze {
+            display: grid;
+            grid-template-columns: repeat(21, var(--cell-size));
+            grid-template-rows: repeat(21, var(--cell-size));
+            gap: 0;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+        }
+
+        .wall { background-color: #333; }
+        .start { background-color: var(--primary-color); }
+        .end { background-color: var(--secondary-color); }
+        .player {
+            background-color: #FFC107
+        }
+
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+
+        .arrow-btn {
+            width: 50px;
+            height: 50px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .arrow-btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .arrow-btn:active {
+            transform: scale(0.95);
+        }
+
+        .generate-btn {
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .generate-btn:hover {
+            background-color: #1976D2;
+        }
+
+        @media (max-width: 768px) {
+            .maze-container {
+                flex-direction: column;
+            }
+
+            .maze {
+                grid-template-columns: repeat(21, 15px);
+                grid-template-rows: repeat(21, 15px);
+            }
+
+            .cell {
+                width: 15px;
+                height: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Random Maze Generator</h1>
+        <div class="maze-container">
+            <div id="maze" class="maze"></div>
+            <div class="dpad">
+                <button class="arrow-btn" style="grid-column: 2" onclick="movePlayer('up')">↑</button>
+                <button class="arrow-btn" style="grid-row: 2" onclick="movePlayer('left')">←</button>
+                <button class="arrow-btn" style="grid-column: 3; grid-row: 2" onclick="movePlayer('right')">→</button>
+                <button class="arrow-btn" style="grid-column: 2; grid-row: 3" onclick="movePlayer('down')">↓</button>
+            </div>
+        </div>
+        <button class="generate-btn" onclick="generateNewMaze()">Generate New Maze</button>
+    </div>
+
+    <script>
+        let playerPos = {{ player_pos }};
+        let mazeData = {{ maze | tojson }};
+
+        function renderMaze() {
+            const mazeContainer = document.getElementById('maze');
+            mazeContainer.innerHTML = '';
+
+            mazeData.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                    const div = document.createElement('div');
+                    div.classList.add('cell');
+                    
+                    if (cell === '#') {
+                        div.classList.add('wall');
+                    } else if (cell === 'S') {
+                        div.classList.add('start');
+                    } else if (cell === 'E') {
+                        div.classList.add('end');
+                    } else if (rowIndex === playerPos[0] && colIndex === playerPos[1]) {
+                        div.classList.add('player');
+                    }
+                    
+                    mazeContainer.appendChild(div);
+                });
+            });
+        }
+
+        document.addEventListener('keydown', function(event) {
+            let direction = null;
+            if (event.key === 'ArrowUp') direction = 'up';
+            if (event.key === 'ArrowDown') direction = 'down';
+            if (event.key === 'ArrowLeft') direction = 'left';
+            if (event.key === 'ArrowRight') direction = 'right';
+            
+            if (direction) {
+                movePlayer(direction);
+            }
+        });
+
+        function movePlayer(direction) {
+            fetch('/move', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ direction: direction })
+            })
+            .then(response => response.json())
+            .then(data => {
+                playerPos = data.player_pos;
+                mazeData = data.maze;
+                renderMaze();
+                if (data.win) {
+                    alert("Congratulations! You've solved the maze!");
+                }
+            });
+        }
+
+        function generateNewMaze() {
+            fetch('/new_maze')
+                .then(response => response.json())
+                .then(data => {
+                    mazeData = data.maze;
+                    playerPos = data.player_pos;
+                    renderMaze();
+                });
+        }
+
+        renderMaze();
+    </script>
+</body>
+</html>
+
