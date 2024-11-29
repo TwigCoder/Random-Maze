@@ -12,7 +12,7 @@
             --secondary-color: #2196F3;
             --background-color: #f0f2f5;
             --text-color: #333;
-            --cell-size: 20px;
+            --cell-size: 19px;
         }
 
         body {
@@ -145,11 +145,21 @@
             </div>
         </div>
         <button class="generate-btn" onclick="generateNewMaze()">Generate New Maze</button>
+        <button class="generate-btn" id="toggle-fog-btn" onclick="toggleFog()">Enable Fog of War</button>
     </div>
 
     <script>
         let playerPos = {{ player_pos }};
         let mazeData = {{ maze | tojson }};
+        let fogEnabled = false; // Fog of War toggle state
+        const fogRadius = 2; // Visibility radius when Fog of War is enabled
+
+        function toggleFog() {
+            fogEnabled = !fogEnabled;
+            const fogButton = document.getElementById('toggle-fog-btn');
+            fogButton.textContent = fogEnabled ? "Disable Fog of War" : "Enable Fog of War";
+            renderMaze();
+        }
 
         function renderMaze() {
             const mazeContainer = document.getElementById('maze');
@@ -159,8 +169,14 @@
                 row.forEach((cell, colIndex) => {
                     const div = document.createElement('div');
                     div.classList.add('cell');
-                    
-                    if (cell === '#') {
+
+                    const isVisible = !fogEnabled || 
+                        (Math.abs(playerPos[0] - rowIndex) <= fogRadius && 
+                         Math.abs(playerPos[1] - colIndex) <= fogRadius);
+
+                    if (!isVisible) {
+                        div.style.backgroundColor = '#ccc'; // Grey for hidden cells
+                    } else if (cell === '#') {
                         div.classList.add('wall');
                     } else if (cell === 'S') {
                         div.classList.add('start');
@@ -169,7 +185,7 @@
                     } else if (rowIndex === playerPos[0] && colIndex === playerPos[1]) {
                         div.classList.add('player');
                     }
-                    
+
                     mazeContainer.appendChild(div);
                 });
             });
@@ -181,7 +197,7 @@
             if (event.key === 'ArrowDown') direction = 'down';
             if (event.key === 'ArrowLeft') direction = 'left';
             if (event.key === 'ArrowRight') direction = 'right';
-            
+
             if (direction) {
                 movePlayer(direction);
             }
@@ -220,4 +236,3 @@
     </script>
 </body>
 </html>
-
